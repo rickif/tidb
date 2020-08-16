@@ -646,6 +646,13 @@ func (cc *clientConn) PeerHost(hasPassword string) (host string, err error) {
 	return
 }
 
+func (cc *clientConn) maybePrintHelloTransaction(ctx context.Context) {
+	stmtType := cc.ctx.GetSessionVars().StmtCtx.StmtType
+	if stmtType == "Begin" {
+		logutil.Logger(ctx).Info("hello transaction")
+	}
+}
+
 // Run reads client query and writes query result to client in for loop, if there is a panic during query handling,
 // it will be recovered and log the panic error.
 // This function returns and the connection is closed if there is an IO error or there is a panic.
@@ -710,6 +717,9 @@ func (cc *clientConn) Run(ctx context.Context) {
 		if !atomic.CompareAndSwapInt32(&cc.status, connStatusReading, connStatusDispatching) {
 			return
 		}
+
+		// print hello transction when begin transaction
+		cc.maybePrintHelloTransaction(ctx)
 
 		startTime := time.Now()
 		if err = cc.dispatch(ctx, data); err != nil {
